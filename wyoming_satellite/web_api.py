@@ -89,26 +89,33 @@ async def cancel_pipeline():
         raise HTTPException(status_code=500, detail="Satellite not initialized")
     
     try:
-        # Prüfe, ob das Streaming aktiv ist
+        # Check if streaming is active
         if hasattr(satellite, "is_streaming") and satellite.is_streaming:
-            # Verschiedene Satellitentypen haben unterschiedliche Methoden zum Stoppen
-            # Wir verwenden einen generischen Ansatz:
+            # Different satellite types have different methods to stop streaming
+            # We use a generic approach:
             
-            # 1. Versuche zuerst die direkte Methode, falls vorhanden
+            # 1. First try the direct method, if available
             if hasattr(satellite, "stop_streaming") and callable(getattr(satellite, "stop_streaming")):
                 await satellite.stop_streaming()
                 return {"status": "success", "message": "Pipeline cancelled"}
                 
-            # 2. Setze das is_streaming-Flag direkt zurück
+            # 2. Set the is_streaming flag directly back to False
             satellite.is_streaming = False
             
-            # 3. Sende ein AudioStop-Ereignis, falls möglich
+            # 3. Send an AudioStop event and an Error event, if possible
             from wyoming.audio import AudioStop
+            from wyoming.error import Error
             if hasattr(satellite, "event_to_server") and callable(getattr(satellite, "event_to_server")):
                 try:
+                    # End the audio stream
                     await satellite.event_to_server(AudioStop().event())
+                    
+                    # Send an error to completely cancel the pipeline
+                    error_event = Error(message="Pipeline cancelled by user").event()
+                    await satellite.event_to_server(error_event)
+                    _LOGGER.info("Sent pipeline cancellation signal to server")
                 except Exception as e:
-                    _LOGGER.warning(f"Failed to send AudioStop event: {e}")
+                    _LOGGER.warning(f"Failed to send stop events: {e}")
                     
             # 4. Trigger streaming_stop event
             if hasattr(satellite, "trigger_streaming_stop") and callable(getattr(satellite, "trigger_streaming_stop")):
