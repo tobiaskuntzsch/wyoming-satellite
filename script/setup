@@ -10,6 +10,7 @@ _VENV_DIR = _PROGRAM_DIR / ".venv"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dev", action="store_true", help="Install dev requirements")
+parser.add_argument("--api", action="store_true", help="Install API dependencies (fastapi, uvicorn)")
 args = parser.parse_args()
 
 # Create virtual environment
@@ -39,4 +40,10 @@ if args.dev:
     # Install dev requirements
     subprocess.check_call(
         pip + ["install", "-e", f"{_PROGRAM_DIR}[dev]"]
+    )
+
+if args.api:
+    # Install API requirements
+    subprocess.check_call(
+        pip + ["install", "-e", f"{_PROGRAM_DIR}[api]"]
     )

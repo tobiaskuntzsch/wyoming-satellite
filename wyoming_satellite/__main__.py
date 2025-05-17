@@ -454,12 +454,24 @@ async def main() -> None:
     # Start web API if URI is specified
     web_server_task = None
     if args.api_uri:
-        from .web_api import start_web_server
-        web_server_task = asyncio.create_task(
-            start_web_server(args.api_uri, satellite),
-            name="web_server"
-        )
-        _LOGGER.info(f"Web API started at {args.api_uri}")
+        try:
+            import importlib.util
+            # Check if fastapi is available
+            if importlib.util.find_spec("fastapi") is None or importlib.util.find_spec("uvicorn") is None:
+                _LOGGER.error(
+                    "Web API requested but required packages are not installed. "
+                    "Please install with: pip install fastapi uvicorn"
+                )
+            else:
+                from .web_api import start_web_server
+                web_server_task = asyncio.create_task(
+                    start_web_server(args.api_uri, satellite),
+                    name="web_server"
+                )
+                _LOGGER.info(f"Web API started at {args.api_uri}")
+        except ImportError as e:
+            _LOGGER.error(f"Failed to start web API: {e}")
+            _LOGGER.error("Install required packages with: pip install fastapi uvicorn")
 
     if (not args.no_zeroconf) and isinstance(server, AsyncTcpServer):
         from wyoming.zeroconf import register_server

@@ -192,7 +192,23 @@ For more advanced scenarios, use an event service (`--event-uri`). See `wyoming_
 
 ## Web API
 
-The satellite can expose a REST API using the `--api-uri` parameter:
+The satellite can expose a REST API using the `--api-uri` parameter. This feature requires additional dependencies that you can install in one of these ways:
+
+```sh
+# When using pip directly
+pip install "wyoming-satellite[api]"
+
+# Or when using the setup script
+script/setup --api
+```
+
+Or manually install the required packages:
+
+```sh
+pip install fastapi uvicorn
+```
+
+After installing the dependencies, you can start the satellite with:
 
 ```sh
 script/run \
