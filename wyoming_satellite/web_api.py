@@ -11,9 +11,9 @@ from pydantic import BaseModel
 from wyoming.satellite import RunSatellite
 from wyoming.wake import Detection
 
-# Diese Importe werden später im Code dynamisch überprüft
-# und sicher importiert, wenn die Module verfügbar sind
-import_errors = []  # Sammelt fehlende Module für bessere Fehlermeldungen
+# These imports are dynamically checked later in the code
+# and safely imported if the modules are available
+import_errors = []  # Collects missing modules for better error messages
 try:
     import uvicorn
 except ImportError as e:
@@ -50,13 +50,19 @@ async def trigger_wake_word(request: WakeWordTriggerRequest):
         raise HTTPException(status_code=500, detail="Satellite not initialized")
     
     try:
-        # Create a Detection event with optional name and pipeline
+        # Create a Detection event with optional name
         wake_word_name = request.wake_word_name if request.wake_word_name else "web_trigger"
+        
+        # The Wyoming library does not support a pipeline parameter in Detection
         detection = Detection(
             name=wake_word_name,
-            timestamp=0,  # Ignored by the Satellite logic
-            pipeline=request.pipeline
+            timestamp=0  # Ignored by the Satellite logic
         )
+        
+        # Store pipeline info in context log messages
+        if request.pipeline:
+            _LOGGER.info(f"Requested pipeline: {request.pipeline} (not directly supported by Detection event)")
+            # This might be supported in newer versions, but we'll ignore it for now
         
         # Simulate wake word detection
         if isinstance(satellite, type) or not hasattr(satellite, "event_from_wake"):
@@ -129,7 +135,7 @@ async def start_web_server(api_uri: str, satellite_instance):
     global satellite
     satellite = satellite_instance
     
-    # Prüfe, ob die erforderlichen Abhängigkeiten installiert sind
+    # Check if the required dependencies are installed
     if import_errors:
         error_message = "\n".join(import_errors)
         _LOGGER.error(f"Cannot start web API - missing dependencies:\n{error_message}")
