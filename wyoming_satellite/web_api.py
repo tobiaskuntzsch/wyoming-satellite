@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from typing import Optional
+import time
+from typing import Optional, Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,8 +41,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global variable for Satellite instance
+# Global variables
 satellite = None
+last_state_change = time.time()  # Track when the state last changed
+current_state = "idle"           # Current state of the satellite
 
 @app.post("/api/trigger-wake")
 async def trigger_wake_word(request: WakeWordTriggerRequest):
@@ -128,6 +131,37 @@ async def cancel_pipeline():
     except Exception as e:
         _LOGGER.exception("Error canceling pipeline")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/status")
+async def get_status():
+    """Returns the current status of the satellite."""
+    global current_state, last_state_change
+    
+    if not satellite:
+        raise HTTPException(status_code=503, detail="Satellite not initialized")
+    
+    # Determine current state based on satellite attributes
+    is_active = False
+    
+    if hasattr(satellite, "is_streaming") and satellite.is_streaming:
+        current_state = "streaming"
+        is_active = True
+    else:
+        # Check if satellite is in wake word detection mode
+        has_wake_word = hasattr(satellite, "_wake_client") and satellite._wake_client is not None
+        if has_wake_word:
+            current_state = "listening"
+            is_active = True
+        else:
+            current_state = "idle"
+    
+    # Return status information
+    return {
+        "state": current_state,
+        "is_active": is_active,
+        "timestamp": int(time.time())
+    }
 
 
 @app.post("/api/reconnect")

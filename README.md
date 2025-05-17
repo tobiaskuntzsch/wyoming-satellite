@@ -259,6 +259,25 @@ Cancels the current voice input pipeline.
 }
 ```
 
+#### `GET /api/status`
+
+Returns the current status of the satellite.
+
+**Response:**
+
+```json
+{
+  "state": "idle|listening|streaming",
+  "is_active": true|false,
+  "timestamp": 1621234567
+}
+```
+
+Possible states:
+- `idle`: The satellite is inactive
+- `listening`: The satellite is listening for wake words
+- `streaming`: The satellite is streaming audio to Home Assistant
+
 #### `POST /api/reconnect`
 
 Reconnects to Home Assistant by resetting the current connection.
