@@ -6,9 +6,18 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from wyoming.satellite import RunSatellite
 from wyoming.wake import Detection
+
+# Diese Importe werden später im Code dynamisch überprüft
+# und sicher importiert, wenn die Module verfügbar sind
+import_errors = []  # Sammelt fehlende Module für bessere Fehlermeldungen
+try:
+    import uvicorn
+except ImportError as e:
+    import_errors.append(f"uvicorn: {str(e)}")
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,6 +129,13 @@ async def start_web_server(api_uri: str, satellite_instance):
     global satellite
     satellite = satellite_instance
     
+    # Prüfe, ob die erforderlichen Abhängigkeiten installiert sind
+    if import_errors:
+        error_message = "\n".join(import_errors)
+        _LOGGER.error(f"Cannot start web API - missing dependencies:\n{error_message}")
+        _LOGGER.error("Install required packages with: pip install fastapi uvicorn")
+        return
+    
     # Parse URI (format: http://host:port)
     try:
         from urllib.parse import urlparse
@@ -128,10 +144,6 @@ async def start_web_server(api_uri: str, satellite_instance):
         port = parsed_uri.port or 8080
         
         _LOGGER.info(f"Attempting to start web API server on {host}:{port}")
-        
-        # Configure and start server with better error handling
-        config = uvicorn.Config(app, host=host, port=port, log_level="error")
-        server = uvicorn.Server(config)
         
         # First check if the port is available
         import socket
@@ -143,6 +155,10 @@ async def start_web_server(api_uri: str, satellite_instance):
             _LOGGER.error(f"Cannot start web API: Port {port} is already in use")
             return
             
+        # Configure and start server with better error handling
+        config = uvicorn.Config(app, host=host, port=port, log_level="error")
+        server = uvicorn.Server(config)
+        
         # Actually start serving
         _LOGGER.info(f"Starting web API server on {host}:{port}")
         await server.serve()
