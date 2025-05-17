@@ -89,9 +89,31 @@ async def cancel_pipeline():
         raise HTTPException(status_code=500, detail="Satellite not initialized")
     
     try:
-        # Stop streaming if active
-        if satellite.is_streaming:
-            await satellite.stop_streaming()
+        # Prüfe, ob das Streaming aktiv ist
+        if hasattr(satellite, "is_streaming") and satellite.is_streaming:
+            # Verschiedene Satellitentypen haben unterschiedliche Methoden zum Stoppen
+            # Wir verwenden einen generischen Ansatz:
+            
+            # 1. Versuche zuerst die direkte Methode, falls vorhanden
+            if hasattr(satellite, "stop_streaming") and callable(getattr(satellite, "stop_streaming")):
+                await satellite.stop_streaming()
+                return {"status": "success", "message": "Pipeline cancelled"}
+                
+            # 2. Setze das is_streaming-Flag direkt zurück
+            satellite.is_streaming = False
+            
+            # 3. Sende ein AudioStop-Ereignis, falls möglich
+            from wyoming.audio import AudioStop
+            if hasattr(satellite, "event_to_server") and callable(getattr(satellite, "event_to_server")):
+                try:
+                    await satellite.event_to_server(AudioStop().event())
+                except Exception as e:
+                    _LOGGER.warning(f"Failed to send AudioStop event: {e}")
+                    
+            # 4. Trigger streaming_stop event
+            if hasattr(satellite, "trigger_streaming_stop") and callable(getattr(satellite, "trigger_streaming_stop")):
+                await satellite.trigger_streaming_stop()
+                
             return {"status": "success", "message": "Pipeline cancelled"}
         else:
             return {"status": "info", "message": "No active pipeline"}
