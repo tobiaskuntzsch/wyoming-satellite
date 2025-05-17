@@ -126,13 +126,28 @@ async def start_web_server(api_uri: str, satellite_instance):
         parsed_uri = urlparse(api_uri)
         host = parsed_uri.hostname or "127.0.0.1"
         port = parsed_uri.port or 8080
+        
+        _LOGGER.info(f"Attempting to start web API server on {host}:{port}")
+        
+        # Configure and start server with better error handling
+        config = uvicorn.Config(app, host=host, port=port, log_level="error")
+        server = uvicorn.Server(config)
+        
+        # First check if the port is available
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        
+        if result == 0:  # Port is already in use
+            _LOGGER.error(f"Cannot start web API: Port {port} is already in use")
+            return
+            
+        # Actually start serving
+        _LOGGER.info(f"Starting web API server on {host}:{port}")
+        await server.serve()
+        _LOGGER.info(f"Web API server stopped")
+        
     except Exception as e:
-        _LOGGER.error(f"Invalid API URI format: {api_uri}")
+        _LOGGER.error(f"Failed to start web API server: {str(e)}")
         _LOGGER.exception(e)
-        host = "127.0.0.1"
-        port = 8080
-    
-    config = uvicorn.Config(app, host=host, port=port)
-    server = uvicorn.Server(config)
-    
-    await server.serve()
