@@ -189,3 +189,88 @@ Satellites can respond to events from the server by running commands:
 * `--timer-finished-command` - timer has finished (timer id on stdin)
 
 For more advanced scenarios, use an event service (`--event-uri`). See `wyoming_satellite/example_event_client.py` for a basic client that just logs events.
+
+## Web API
+
+The satellite can expose a REST API using the `--api-uri` parameter:
+
+```sh
+script/run \
+  ... \
+  --api-uri "http://127.0.0.1:8080"
+```
+
+You can specify any host and port in the URI:
+- `http://127.0.0.1:8080` - Only accessible from the local machine (recommended for security)
+- `http://0.0.0.0:8080` - Accessible from any network interface (use with caution)
+
+This will start a web server at the specified URI that provides the following endpoints:
+
+### API Endpoints
+
+#### `POST /api/trigger-wake`
+
+Triggers wake word detection manually, bypassing the actual wake word detection.
+
+**Request:**
+
+```json
+{
+  "wake_word_name": "optional_custom_name",
+  "pipeline": "optional_pipeline_name"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Wake word detected"
+}
+```
+
+#### `POST /api/cancel`
+
+Cancels the current voice input pipeline.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Pipeline cancelled"
+}
+```
+
+#### `POST /api/reconnect`
+
+Reconnects to Home Assistant by resetting the current connection.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Connection reestablished"
+}
+```
+
+### Example Usage with curl
+
+```sh
+# Replace API_HOST with your actual host and port
+API_HOST="http://127.0.0.1:8080"
+
+# Trigger wake word detection
+curl -X POST "$API_HOST/api/trigger-wake" -H "Content-Type: application/json" -d '{}'
+
+# Trigger with specific wake word
+curl -X POST "$API_HOST/api/trigger-wake" -H "Content-Type: application/json" -d '{"wake_word_name": "custom_name"}'
+
+# Cancel pipeline
+curl -X POST "$API_HOST/api/cancel"
+
+# Reconnect to Home Assistant
+curl -X POST "$API_HOST/api/reconnect"
+```

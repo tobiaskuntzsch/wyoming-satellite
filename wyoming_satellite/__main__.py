@@ -297,6 +297,10 @@ async def main() -> None:
         version=__version__,
         help="Print version and exit",
     )
+    parser.add_argument(
+        "--api-uri",
+        help="URI for web API (e.g., 'http://127.0.0.1:10900')",
+    )
     args = parser.parse_args()
 
     # Validate args
@@ -446,6 +450,16 @@ async def main() -> None:
 
     # Start server
     server = AsyncServer.from_uri(args.uri)
+    
+    # Start web API if URI is specified
+    web_server_task = None
+    if args.api_uri:
+        from .web_api import start_web_server
+        web_server_task = asyncio.create_task(
+            start_web_server(args.api_uri, satellite),
+            name="web_server"
+        )
+        _LOGGER.info(f"Web API started at {args.api_uri}")
 
     if (not args.no_zeroconf) and isinstance(server, AsyncTcpServer):
         from wyoming.zeroconf import register_server
@@ -474,6 +488,14 @@ async def main() -> None:
     finally:
         await satellite.stop()
         await satellite_task
+        
+        # Stop web server if running
+        if web_server_task:
+            web_server_task.cancel()
+            try:
+                await web_server_task
+            except asyncio.CancelledError:
+                pass
 
 
 # -----------------------------------------------------------------------------
